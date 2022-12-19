@@ -31,6 +31,8 @@ match: <input type="text" id="match">
 <br>
 selec: <input type="text" id="selec">
 <br>
+count: <input type="text" id="count" >
+<br>
 <button id="btn">提交</button>
 <hr>
 <div id="namelist">
@@ -51,6 +53,7 @@ selec: <input type="text" id="selec">
     var NO_REG = undefined;
     var YES_REG = undefined;
     var SEL_REG = undefined;
+    var count = 10;
 
     function clearData() {
         $content.html('');
@@ -69,6 +72,10 @@ selec: <input type="text" id="selec">
         val = $('#selec').val();
         if (val) {
             SEL_REG = val.split("$$").map(item => eval(`/${item}/g`))
+        }
+        val = $('#count').val();
+        if (val) {
+            count = parseInt(val)
         }
     }
 
@@ -98,6 +105,7 @@ selec: <input type="text" id="selec">
     }
 
     function createAllLi() {
+        var list = [];
         for (var item of dataList) {
             let val = item.val;
             console.log(val , existLocal(val));
@@ -111,7 +119,14 @@ selec: <input type="text" id="selec">
             if (existLocal(val)) {
                 continue
             }
-            createLi(val)
+            list.push(val)
+            if (list.length >= count) {
+                createLi(list.join("\n"))
+                list = []
+            }
+        }
+        if (list.length > 0) {
+            createLi(list.join("\n"))
         }
     }
 
