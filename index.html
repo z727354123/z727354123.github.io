@@ -68,7 +68,7 @@ selec: <input type="text" id="selec">
         }
         val = $('#selec').val();
         if (val) {
-            SEL_REG = eval(`/${val}/g`);
+            SEL_REG = val.split("$$").map(item => eval(`/${item}/g`))
         }
     }
 
@@ -99,26 +99,29 @@ selec: <input type="text" id="selec">
 
     function createAllLi() {
         for (var item of dataList) {
-            const val = item.val;
+            let val = item.val;
             console.log(val , existLocal(val));
-            if (existLocal(val)) {
-                continue
-            }
             if (NO_REG && noMatch(val)) {
                 continue
             }
             if (YES_REG && !match(val)) {
                 continue
             }
-            createLi(getGroupOne(val))
+            val = getGroupOne(val);
+            if (existLocal(val)) {
+                continue
+            }
+            createLi(val)
         }
     }
 
     function getGroupOne(val) {
         if (SEL_REG) {
-            let item = SEL_REG.exec(val);
-            if (item && item[1]) {
-                return item[1]
+            for (var reg of SEL_REG) {
+                let item = reg.exec(val);
+                if (item && item[1]) {
+                    return item[1]
+                }
             }
         }
         return val
