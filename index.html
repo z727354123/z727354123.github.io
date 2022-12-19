@@ -2,24 +2,24 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.15.6/xlsx.core.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.15.6/xlsx.core.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
 
-    <style>
-        ol, hr, button {
-            margin: 5px;
-        }
+  <style>
+      ol, hr, button {
+          margin: 5px;
+      }
 
-        pre {
-            display: inline;
-            margin: 0;
-        }
-    </style>
+      pre {
+          display: inline;
+          margin: 0;
+      }
+  </style>
 </head>
 <body>
 
@@ -28,6 +28,8 @@
 noMatch: <input type="text" id="noMatch">
 <br>
 match: <input type="text" id="match">
+<br>
+selec: <input type="text" id="selec">
 <br>
 <button id="btn">提交</button>
 <hr>
@@ -48,6 +50,7 @@ match: <input type="text" id="match">
     const $namelist = $('#namelist');
     var NO_REG = undefined;
     var YES_REG = undefined;
+    var SEL_REG = undefined;
 
     function clearData() {
         $content.html('');
@@ -62,6 +65,10 @@ match: <input type="text" id="match">
         val = $('#match').val();
         if (val) {
             YES_REG = eval(`/${val}/g`);
+        }
+        val = $('#selec').val();
+        if (val) {
+            SEL_REG = eval(`/${val}/g`);
         }
     }
 
@@ -103,10 +110,19 @@ match: <input type="text" id="match">
             if (YES_REG && !match(val)) {
                 continue
             }
-            createLi(val)
+            createLi(getGroupOne(val))
         }
     }
 
+    function getGroupOne(val) {
+        if (SEL_REG) {
+            let item = SEL_REG.exec(val);
+            if (item && item[1]) {
+                return item[1]
+            }
+        }
+        return val
+    }
     function noMatch(val) {
         return NO_REG.exec(val)
     }
