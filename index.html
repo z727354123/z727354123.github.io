@@ -1,0 +1,308 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.15.6/xlsx.core.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+
+    <style>
+        ol, hr, button {
+            margin: 5px;
+        }
+
+        pre {
+            display: inline;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<input type="file" id="file">
+<br>
+noMatch: <input type="text" id="noMatch">
+<br>
+match: <input type="text" id="match">
+<br>
+<button id="btn">提交</button>
+<hr>
+<div id="namelist">
+</div>
+<hr>
+<ol id="content">
+</ol>
+<hr>
+
+<script>
+    var idx = 0;
+    var dataList = [];
+    var renderList = [];
+
+
+    const $content = $('#content');
+    const $namelist = $('#namelist');
+    var NO_REG = undefined;
+    var YES_REG = undefined;
+
+    function clearData() {
+        $content.html('');
+        $namelist.html('');
+    }
+
+    function textReg () {
+        var val = $('#noMatch').val();
+        if (val) {
+            NO_REG = eval(`/${val}/g`);
+        }
+        val = $('#match').val();
+        if (val) {
+            YES_REG = eval(`/${val}/g`);
+        }
+    }
+
+    $('#btn').click((e) => {
+        // 正则
+        textReg()
+        const files = $('#file')[0].files;
+        if (files.length == 0) {
+            // alert("请上传文件")
+            return
+        }
+        // 清空数据
+        clearData();
+        // 解析数据
+        fileToJson(files[0], (sheets) => {
+            console.log('获取到的表格数据', sheets);
+            parseSheets(sheets);
+        });
+    });
+
+
+    function parseSheets(sheets) {
+        parseForName(sheets);
+        dataList = parseForCopy(sheets)
+        filterDataList()
+        createAllLi()
+    }
+
+    function createAllLi() {
+        for (var item of dataList) {
+            const val = item.val;
+            console.log(val , existLocal(val));
+            if (existLocal(val)) {
+                continue
+            }
+            if (NO_REG && noMatch(val)) {
+                continue
+            }
+            if (YES_REG && !match(val)) {
+                continue
+            }
+            createLi(val)
+        }
+    }
+
+    function noMatch(val) {
+        return NO_REG.exec(val)
+    }
+    function match(val) {
+        return YES_REG.exec(val)
+    }
+
+    function existLocal(val) {
+        return localStorage.getItem(val) === '1'
+    }
+
+    function addToLocal(val) {
+        localStorage.setItem(val, '1')
+    }
+
+    function filterDataList() {
+        console.log(dataList);
+        const sortList = [...dataList].sort((left, right) => {
+            return left.count - right.count
+        });
+        console.log(sortList);
+    }
+
+    function parseForCopy(sheets) {
+        var list= []
+        for (var sheetIdx in sheets) {
+            const sheet = sheets[sheetIdx].list;
+            for (var rowIdx in sheet) {
+                const row = sheet[rowIdx];
+                for (var colIdx in row) {
+                    const val = row[colIdx];
+                    list.push({
+                        val,
+                        sheetIdx,
+                        rowIdx,
+                        colIdx,
+                        count: colIdx
+                    })
+                }
+            }
+        }
+        return list;
+    }
+
+    function parseForName(sheets) {
+        var str = "";
+        for (var item of sheets) {
+            str += `<li><pre>${item.name}</pre></li>`
+        }
+        str = `<ol>${str}</ol>`
+        $(str).appendTo($namelist)
+    }
+
+
+    // 创建html
+    function buildHtml(inIdx, desc) {
+        $(`<li>
+        <div>
+            <button id="${inIdx}">copy</button>
+            <pre>${desc}</pre>
+        </div>
+    </li>`).appendTo($content);
+    }
+
+    function createLi(desc) {
+        const inIdx = 'li_' + idx++;
+        // 创建html
+        buildHtml(inIdx, desc)
+        // 点击事件
+        $('#' + inIdx).click(function (e) {
+            const $btn = $(e.target);
+            const text = $btn.next().text();
+            navigator.clipboard.writeText(text).then(() => {
+                // 成功
+                $btn.closest('li').remove();
+                addToLocal(text)
+            }, () => {
+                alert("复制失败")
+            });
+        });
+        return inIdx;
+    }
+
+    function fileToJson(file, callback) {
+        // 数据处理结果
+        let result;
+        // 是否用BinaryString（字节字符串格式） 否则使用base64（二进制格式）
+        let isBinary = true;
+        // 创建一个FileReader对象
+        var reader = new FileReader();
+        // reader在onload解析结束事件时触发
+        reader.onload = function (e) {
+            console.log("-------------------华丽分割线----------------------", e);
+            var data = e.target.result;
+            if (isBinary) {
+                result = XLSX.read(data, {
+                    type: 'binary',
+                    cellDates: true,// 为了获取excel表格中的时间，返回格式为世界时间
+                });
+            } else {
+                result = XLSX.read(btoa(fixdata(data)), {
+                    type: 'base64',
+                    cellDates: true,
+                });
+            }
+            // 格式化数据
+            formatResult(result, callback);
+        };
+        if (isBinary) {
+            reader.readAsBinaryString(file);// 使用 BinaryString 来解析文件数据
+        } else {
+            reader.readAsArrayBuffer(file);// 使用base64 来解析文件数据
+        }
+    }
+
+    // 文件流转 base64
+    function fixdata(data) {
+        var o = '',
+            l = 0,
+            w = 10240;
+        for (; l < data.byteLength / w; ++l)
+            o += String.fromCharCode.apply(
+                null,
+                new Uint8Array(data.slice(l * w, l * w + w))
+            );
+        o += String.fromCharCode.apply(null, new Uint8Array(data.slice(l * w)));
+        return o;
+    }
+
+    // 将读取的数据转成JSON
+    function formatResult(data, callback) {
+        // 获取总数据
+        const sheets = data.Sheets;
+        // 获取每个表格
+        const sheetItem = Object.keys(sheets);
+        // 返回sheetJSON数据源
+        let sheetArr = [];
+        // 获取
+        sheetItem.forEach((item) => {
+            const sheetJson = XLSX.utils.sheet_to_json(sheets[item], {header: 1});
+            console.log('sheetJson', sheetJson);
+            // 格式化Item时间数据
+            formatItemDate(sheetJson);
+            // 格式化Item合并数据
+            formatItemMerge(sheets[item], sheetJson);
+            // 组合数据
+            sheetArr.push({
+                name: item,
+                list: sheetJson
+            })
+        });
+        // 返回数据
+        callback(sheetArr)
+    }
+
+    // 格式化Item时间数据
+    function formatItemDate(data) {
+        data.forEach((row) => {
+            row.forEach((item, index) => {
+                // 若有数据为时间格式则格式化时间
+                if (item instanceof Date) {
+                    // 坑：这里因为XLSX插件源码中获取的时间少了近43秒，所以在获取凌晨的时间上会相差一天的情况,这里手动将时间加上
+                    var date = new Date(Date.parse(item) + 43 * 1000);
+                    row[index] = `${date.getFullYear()}-${String(
+                        date.getMonth() + 1
+                    ).padStart(2, 0)}-${String(date.getDate()).padStart(2, 0)}`;
+                }
+            });
+        });
+        console.log('data', data);
+    }
+
+    // 格式化Item合并数据
+    function formatItemMerge(sheetItem, data) {
+        // 保存每一项sheet中的合并单元格记录
+        const merges = sheetItem['!merges'] || [];
+        merges.forEach((el) => {
+            const start = el.s;
+            const end = el.e;
+            // 处理行合并数据
+            if (start.r === end.r) {
+                const item = data[start.r][start.c];
+                for (let index = start.c; index <= end.c; index++) {
+                    data[start.r][index] = item;
+                }
+            }
+            // 处理列合并数据
+            if (start.c === end.c) {
+                const item = data[start.r][start.c];
+                for (let index = start.r; index <= end.r; index++) {
+                    data[index][start.c] = item;
+                }
+            }
+        });
+    }
+
+</script>
+</body>
+</html>
